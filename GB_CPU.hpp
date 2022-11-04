@@ -1,5 +1,5 @@
 #pragma once
-#include "GB_Memory.hpp"
+#include "GB_Memory_v2.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -12,23 +12,23 @@
 class CPU
 {
 private:
-	bool* m_A; //A - accumulator; where arhythmetic occurs
-	bool* m_F0; bool* m_F1; bool* m_F2; bool* m_F3; bool* m_F4; bool* m_F5; bool* m_F6; bool* m_F7; // Flag register
-	bool* m_B;
-	bool* m_C;
-	bool* m_D; // !!! Some sources say these are 16-bit each
-	bool* m_E; // !!! Some sources say these are 16-bit each
-	bool* m_H; //	  can be used as two separate 8-bit regs or one 16-bit reg. Used to point to memory.
-	bool* m_L; //     can be used as two separate 8-bit regs or one 16-bit reg. Used to point to memory.
-	bool* m_SP; // Stack Pointer;
-	bool* m_PC; // Program counter === points to memory containing next instruction to be executed.
+	uint8_t* m_A; //A - accumulator; where arhythmetic occurs
+	uint8_t* m_F; // Flag register
+	uint8_t* m_B;
+	uint8_t* m_C;
+	uint8_t* m_D; // !!! Some sources say these are 16-bit each
+	uint8_t* m_E; // !!! Some sources say these are 16-bit each
+	uint8_t* m_H; //	  can be used as two separate 8-bit regs or one 16-bit reg. Used to point to memory.
+	uint8_t* m_L; //     can be used as two separate 8-bit regs or one 16-bit reg. Used to point to memory.
+	uint8_t* m_S; // Stack Pointer;
+	uint8_t* m_P; // Program counter === points to memory containing next instruction to be executed.
 	// Boot instruction located at 0x0100 in Memory.
-	bool* m_CPU_total_memory;
+	uint8_t* m_CPU_total_memory;
 
 	// === PRIVATE FUNCTIONS ===
-	bool** m_char_to_reg_ptr_single(char input)
+	uint8_t** m_char_to_reg_ptr_single(char input)
 	{
-		bool** ptr_to_reg_ptr;
+		uint8_t** ptr_to_reg_ptr;
 		switch (input)
 		{
 		case 'A': ptr_to_reg_ptr = &m_A;
@@ -45,40 +45,26 @@ private:
 			break;
 		case 'L': ptr_to_reg_ptr = &m_L;
 			break;
-		case '0': ptr_to_reg_ptr = &m_F0;
+		case 'F': ptr_to_reg_ptr = &m_F;
 			break;
-		case '1': ptr_to_reg_ptr = &m_F1;
+		case 'S': ptr_to_reg_ptr = &m_S;
 			break;
-		case '2': ptr_to_reg_ptr = &m_F2;
-			break;
-		case '3': ptr_to_reg_ptr = &m_F3;
-			break;
-		case '4': ptr_to_reg_ptr = &m_F4;
-			break;
-		case '5': ptr_to_reg_ptr = &m_F5;
-			break;
-		case '6': ptr_to_reg_ptr = &m_F6;
-			break;
-		case '7': ptr_to_reg_ptr = &m_F7;
-			break;
-		case 'S': ptr_to_reg_ptr = &m_SP;
-			break;
-		case 'P': ptr_to_reg_ptr = &m_PC;
+		case 'P': ptr_to_reg_ptr = &m_P;
 			break;
 		default: std::cerr << "ERROR: m_char_to_reg_ptr_single input not recognized." << std::endl; exit(6);
 		};
 		return ptr_to_reg_ptr;
 	};
 	
-	std::vector<bool**> m_char_to_reg_ptr_paired(char input)
+	std::vector<uint8_t**> m_char_to_reg_ptr_paired(char input)
 	{
-		bool** ptr_to_reg_ptr;
-		bool** ptr_to_reg_ptr_second;
-		std::vector<bool**> array_of_bool_ptrs;
+		uint8_t** ptr_to_reg_ptr;
+		uint8_t** ptr_to_reg_ptr_second;
+		
 
 		switch (input)
 		{
-		case 'A': ptr_to_reg_ptr = &m_A; ptr_to_reg_ptr_second = &m_F0;  // A pairs with F
+		case 'A': ptr_to_reg_ptr = &m_A; ptr_to_reg_ptr_second = &m_F;  // A pairs with F
 			break;
 		case 'B': ptr_to_reg_ptr = &m_B; ptr_to_reg_ptr_second = &m_C;  // B pairs with C
 			break;
@@ -90,37 +76,32 @@ private:
 		default: std::cerr << "ERROR: m_char_to_reg_ptr_paired input not recognized." << std::endl; exit(6);
 		};
 
-		for (uint16_t i = 0; i < 8; ++i)
-		{
-			array_of_bool_ptrs.push_back(ptr_to_reg_ptr + i);
-		};
-		for (uint16_t j = 0; j < 8; ++j)
-		{
-			array_of_bool_ptrs.push_back(ptr_to_reg_ptr_second + j);
-		};
-		return array_of_bool_ptrs;
+		std::vector<uint8_t**> vec_intptrptr;
+		vec_intptrptr.push_back(ptr_to_reg_ptr);
+		vec_intptrptr.push_back(ptr_to_reg_ptr_second);
+		
+		return vec_intptrptr;
 	};
 
 public:
 	CPU()
 	{
-		m_CPU_total_memory = new bool[96];
+		m_CPU_total_memory = new uint8_t[12];
 		m_A = &m_CPU_total_memory[0];
-		m_B = &m_CPU_total_memory[8];
-		m_C = &m_CPU_total_memory[16];
-		m_D = &m_CPU_total_memory[24];
-		m_E = &m_CPU_total_memory[32];
-		m_F0 = &m_CPU_total_memory[40]; m_F1 = &m_CPU_total_memory[41]; m_F2 = &m_CPU_total_memory[42]; m_F3 = &m_CPU_total_memory[43];
-		m_F4 = &m_CPU_total_memory[44]; m_F5 = &m_CPU_total_memory[45]; m_F6 = &m_CPU_total_memory[46]; m_F7 = &m_CPU_total_memory[47];
-		m_H = &m_CPU_total_memory[48];
-		m_L = &m_CPU_total_memory[56];
-		m_SP = &m_CPU_total_memory[64];
-		m_PC = &m_CPU_total_memory[80];
+		m_B = &m_CPU_total_memory[1];
+		m_C = &m_CPU_total_memory[2];
+		m_D = &m_CPU_total_memory[3];
+		m_E = &m_CPU_total_memory[4];
+		m_F = &m_CPU_total_memory[5];
+		m_H = &m_CPU_total_memory[6];
+		m_L = &m_CPU_total_memory[7];
+		m_S = &m_CPU_total_memory[8];
+		m_P = &m_CPU_total_memory[10];
 	};
 
 	
 	//======== C P U === COMMANDS ============================================================
-	void COPY_REGISTRY_TO_REGISTRY(char copy_from, char copy_to)
+	/*void COPY_REGISTRY_TO_REGISTRY(char copy_from, char copy_to)
 	{
 		bool** ptr_to_registry_ptr_FROM = m_char_to_reg_ptr_single(copy_from);
 		bool** ptr_to_registry_ptr_TO = m_char_to_reg_ptr_single(copy_to);
@@ -177,7 +158,26 @@ public:
 		bool** ptr_to_ptr_to_registry = m_char_to_reg_ptr_single(reg_8bit);
 		**ptr_to_ptr_to_registry = any_hex_or_8bit_num;
 		ptr_to_ptr_to_registry = nullptr;
+	};*/
+	//  - - - L O A D S - - - - - 
+	void LD_r8_r8(char reg_copy_to, char reg_copy_from)  // Copy reg_right to reg_left. Cycles: 1   Bytes: 1    Flags: None
+	{
+		**m_char_to_reg_ptr_single(reg_copy_to) = **m_char_to_reg_ptr_single(reg_copy_from);
 	};
+
+	void LD_r8_n8(char reg_copy_to, uint8_t hex_or_bin_num_8bit)  //  Load value n8 into reg r8.   Cycles: 2    Bytes: 2    Flags: None
+	{
+		**m_char_to_reg_ptr_single(reg_copy_to) = hex_or_bin_num_8bit;
+	};
+
+	void LD_r16_n16(char reg_copy_to, uint16_t hex_or_bin_num_16bit) // Load n16 into r16.  Cycles: 3   Bytes: 3    Flags: None
+	{
+		std::vector<uint8_t**> vecptrs = m_char_to_reg_ptr_paired(reg_copy_to);
+		**vecptrs[0] = ((uint16_t)hex_or_bin_num_16bit >> 0 & 0xFF);
+		**vecptrs[1] = ((uint16_t)hex_or_bin_num_16bit >> 8 & 0xFF);
+	};
+
+
 
 
 	~CPU()

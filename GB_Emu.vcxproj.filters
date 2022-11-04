@@ -26,5 +26,8 @@
     <ClInclude Include="GB_CPU.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GB_Memory_v2.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

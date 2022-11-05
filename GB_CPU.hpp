@@ -182,7 +182,7 @@ public:
 
 	~CPU()
 	{
-		m_A, m_B, m_C, m_D, m_E, m_F0, m_F1, m_F2, m_F3, m_F4, m_F5, m_F6, m_F7, m_H, m_L, m_SP, m_PC = nullptr;
+		m_A, m_B, m_C, m_D, m_E, m_F, m_H, m_L, m_S, m_P = nullptr;
 		delete[] m_CPU_total_memory;
 		m_CPU_total_memory = nullptr;
 	};

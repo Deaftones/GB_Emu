@@ -15,29 +15,20 @@ private:
 public:
 	GB_Memory()
 	{
-		ptr_to_total_memory = new uint8_t[256];
+		ptr_to_total_memory = new uint8_t[8192];
 	};
 
-	uint8_t* Get_Ptr_to_Memory(uint16_t hex_or_bin_address)
+	void Set_Memory(uint16_t reg_address_0to8191, uint8_t value)
 	{
-		uint8_t* ptr = ptr_to_total_memory + (hex_or_bin_address / 256);
-		return ptr;
+		uint8_t* ptrptr = &ptr_to_total_memory[reg_address_0to8191];
+		*ptrptr = value;
 	};
 
-	void Set_Memory_8bit(uint8_t hex_or_bin_address, uint16_t value)
+	uint8_t Get_Memory(uint16_t reg_address_0to8191)
 	{
-		uint8_t* ptr = ptr_to_total_memory + (hex_or_bin_address - 1);
-		//uint8_t bitt = std::bitset<8>(value);
-		*ptr = value;
-		ptr = nullptr;
-	};
-
-	uint8_t Get_Memory_8bit(uint8_t hex_or_bin_address)
-	{
-		std::cout << hex_or_bin_address << std::endl;
-		uint8_t mem = *(ptr_to_total_memory + (hex_or_bin_address - 1));
+		uint8_t mem = ptr_to_total_memory[reg_address_0to8191];
 		return mem;
-	}
+	};
 
 	~GB_Memory()
 	{

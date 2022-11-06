@@ -22,8 +22,13 @@ private:
 	uint8_t* m_L; //     can be used as two separate 8-bit regs or one 16-bit reg. Used to point to memory.
 	uint8_t* m_S; // Stack Pointer;
 	uint8_t* m_P; // Program counter === points to memory containing next instruction to be executed.
+	uint8_t* m_X; // my personal flags
 	// Boot instruction located at 0x0100 in Memory.
 	uint8_t* m_CPU_total_memory;
+	GB_Memory* m_ptr_to_total_memory;
+	uint16_t m_HL() { return (*m_L << 8 | *m_H); };    
+	uint16_t m_BC() { return (*m_C << 8 | *m_B); };
+	uint16_t m_DE() { return (*m_E << 8 | *m_D); };
 
 	// === PRIVATE FUNCTIONS ===
 	uint8_t** m_char_to_reg_ptr_single(char input)
@@ -83,10 +88,47 @@ private:
 		return vec_intptrptr;
 	};
 
-public:
-	CPU()
+	uint16_t m_HL_pointer_value()
 	{
-		m_CPU_total_memory = new uint8_t[12];
+		uint16_t HLptr;
+		uint8_t H = *m_H;
+		uint8_t L = *m_L;
+		HLptr = (L << 8) | H;
+		return HLptr;
+	};
+
+	uint8_t m_reg_ptr_number(char mem)
+	{
+		uint8_t binnum;
+		switch (mem)
+		{
+		case 'A': binnum = 0b00000000;
+			break;
+		case 'B': binnum = 0b00000001;
+			break;
+		case 'C': binnum = 0b00000010;
+			break;
+		case 'D': binnum = 0b00000011;
+			break;
+		case 'E': binnum = 0b00000100;
+			break;
+		case 'F': binnum = 0b00000101;
+			break;
+		case 'S': binnum = 0b00001000;
+			break;
+		case 'P': binnum = 0b00001010;
+			break;
+		case 'X': binnum = 0b00001100;
+			break;
+		default: std::cerr << "ERROR: invalid registry address passed to m_reg_ptr_number" << std::endl; exit(9);
+		};
+		return binnum;
+	};
+
+public:
+	CPU(GB_Memory& total_memory)
+	{
+		m_CPU_total_memory = new uint8_t[13];
 		m_A = &m_CPU_total_memory[0];
 		m_B = &m_CPU_total_memory[1];
 		m_C = &m_CPU_total_memory[2];
@@ -97,6 +139,8 @@ public:
 		m_L = &m_CPU_total_memory[7];
 		m_S = &m_CPU_total_memory[8];
 		m_P = &m_CPU_total_memory[10];
+		m_X = &m_CPU_total_memory[12];
+		m_ptr_to_total_memory = &total_memory;
 	};
 
 	
@@ -170,6 +214,122 @@ public:
 		**m_char_to_reg_ptr_single(reg_copy_to) = hex_or_bin_num_8bit;
 	};
 
+	void LD_r8_HLptr(char reg_copy_to)  // Load 8bit data pointed to by the 16-bit pointer register (HL)
+	{
+		uint16_t HL_pointer = m_HL_pointer_value();
+		**m_char_to_reg_ptr_single(reg_copy_to) = m_ptr_to_total_memory->Get_Memory(HL_pointer);
+	};
+
+	void LD_HLderef_r8(char reg)
+	{
+		m_ptr_to_total_memory->Set_Memory(m_HL(), **m_char_to_reg_ptr_single(reg));
+	};
+
+	void LD_HLderef_n8(uint8_t n8)
+	{
+		m_ptr_to_total_memory->Set_Memory(m_HL(), n8);
+	};
+
+	void LD_HLptr_n16(uint16_t address_of_8bit_memory)
+	{
+		uint8_t h, l;
+		h = ((uint16_t)address_of_8bit_memory >> 0 & 0xFF);
+		l = ((uint16_t)address_of_8bit_memory >> 8 & 0xFF);
+		*m_H = h;
+		*m_L = l;
+		std::cout << "h = " << std::bitset<8>(h) << "\nl = " << std::bitset<8>(l) << std::endl;
+	};
+
+	void LD_A_BCptr()
+	{
+		*m_A = m_ptr_to_total_memory->Get_Memory(m_BC());
+	};
+
+	void LD_A_DEptr()
+	{
+		*m_A = m_ptr_to_total_memory->Get_Memory(m_DE());
+	};
+
+	void LD_BCderef_A()
+	{
+		m_ptr_to_total_memory->Set_Memory(m_BC(), *m_A);
+	};
+
+	void LD_DEderef_A()
+	{
+		m_ptr_to_total_memory->Set_Memory(m_DE(), *m_A);
+	};
+
+	void LD_A_nnptr(uint16_t nn)
+	{
+		*m_A = m_ptr_to_total_memory->Get_Memory(nn);
+	};
+
+	void LD_nnderef_A(uint16_t nn)
+	{
+		m_ptr_to_total_memory->Set_Memory(nn, *m_A);
+	};
+
+	void LDH_A_Cptr()  // C = 8bit reg. Full 16-bit address = set most  significant byte to 0xFF and least sign to C.
+	{
+		uint16_t signif = (0xFF00 | *m_C);
+		*m_A = m_ptr_to_total_memory->Get_Memory(signif);
+	};
+
+	void LDH_Cderef_A() // here, C is 8bit register, no 16-bit stuff like above.
+	{
+		m_CPU_total_memory[*m_C] = *m_A;
+	};
+
+	void LDH_A_nptr(uint8_t n)
+	{
+		*m_A = m_CPU_total_memory[n];
+	};
+
+	void LDH_nderef_A(uint8_t n) // n = 8bit uint. Full 16-bit address = set most signig byte to 0xFF and least sign to n.
+	{
+		uint16_t signif = (0xFF00 | n);
+		m_ptr_to_total_memory->Set_Memory(signif, *m_A);
+	};
+
+	void LD_A_HLptr_decrement()    // load memory from location pointed to by HL into register A, then decrement HL by 1 AFTER read.
+	{
+		*m_A = m_ptr_to_total_memory->Get_Memory(m_HL());
+		uint16_t HL = (*m_H << 8 | *m_L);
+		HL = HL - 1;
+		*m_H = ((uint16_t)HL >> 8 & 0xFF);
+		*m_L = ((uint16_t)HL >> 0 & 0xFF);
+	};
+
+	void LD_HLrefer_A_decrement() // load value of reg A into memory pointed to by HL, then decrement HL after the write.
+	{
+		m_ptr_to_total_memory->Set_Memory(m_HL(), *m_A);
+		uint16_t HL = (*m_H << 8 | *m_L);
+		HL = HL - 1;
+		*m_H = ((uint16_t)HL >> 8 & 0xFF);
+		*m_L = ((uint16_t)HL >> 0 & 0xFF);
+	};
+
+	void LD_A_HLptr_increment() // load mem from HLptr to A, then increment HL by 1
+	{
+		*m_A = m_ptr_to_total_memory->Get_Memory(m_HL());
+		uint16_t HL = (*m_H << 8 | *m_L);
+		HL = HL + 1;
+		*m_H = ((uint16_t)HL >> 8 & 0xFF);
+		*m_L = ((uint16_t)HL >> 0 & 0xFF);
+	};
+
+	void LD_HLderef_A_increment() // load value A into memory poitned to be HL, then increment HL by 1.
+	{
+		m_ptr_to_total_memory->Set_Memory(m_HL(), *m_A);
+		uint16_t HL = (*m_H << 8 | *m_L);
+		HL = HL + 1;
+		*m_H = ((uint16_t)HL >> 8 & 0xFF);
+		*m_L = ((uint16_t)HL >> 0 & 0xFF);
+	};
+
+
+	// - - - - 1 6 - - b i t - - l o a d s - - - - 
 	void LD_r16_n16(char reg_copy_to, uint16_t hex_or_bin_num_16bit) // Load n16 into r16.  Cycles: 3   Bytes: 3    Flags: None
 	{
 		std::vector<uint8_t**> vecptrs = m_char_to_reg_ptr_paired(reg_copy_to);
@@ -182,8 +342,9 @@ public:
 
 	~CPU()
 	{
-		m_A, m_B, m_C, m_D, m_E, m_F, m_H, m_L, m_S, m_P = nullptr;
+		m_A, m_B, m_C, m_D, m_E, m_F, m_H, m_L, m_S, m_P, m_X = nullptr;
 		delete[] m_CPU_total_memory;
 		m_CPU_total_memory = nullptr;
+		m_ptr_to_total_memory = nullptr;
 	};
 };

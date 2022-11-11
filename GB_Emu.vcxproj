@@ -135,6 +135,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GB_CPU.hpp" />
+    <ClInclude Include="GB_CPU_v2.hpp" />
     <ClInclude Include="GB_Memory.hpp" />
     <ClInclude Include="GB_Memory_v2.hpp" />
   </ItemGroup>

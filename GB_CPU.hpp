@@ -29,6 +29,7 @@ private:
 	uint16_t m_HL() { return (*m_L << 8 | *m_H); };    
 	uint16_t m_BC() { return (*m_C << 8 | *m_B); };
 	uint16_t m_DE() { return (*m_E << 8 | *m_D); };
+	//uint16_t* m_ptr_stack_memory;
 
 	// === PRIVATE FUNCTIONS ===
 	uint8_t** m_char_to_reg_ptr_single(char input)
@@ -125,6 +126,63 @@ private:
 		return binnum;
 	};
 
+	std::vector<uint16_t> m_v_stack_memory;
+
+	void FLAG_SET(uint8_t flag)
+	{
+		if (flag < 0 || flag > 7) { std::cerr << "ERROR: FLAG_SET out of range" << std::endl; exit(12); };
+		if (flag == 5 || flag == 3) { std::cerr << "ERROR: FLAG_SET attempting to set flags 5 or 3" << std::endl; exit(12); };
+		switch (flag)
+		{
+		case 7: *m_F = (*m_F | 0b10000000);
+			break;
+		case 6: *m_F = (*m_F | 0b01000000);
+			break;
+		case 4: *m_F = (*m_F | 0b00010000);
+			break;
+		case 2: *m_F = (*m_F | 0b00000100);
+			break;
+		case 1: *m_F = (*m_F | 0b00000010);
+			break;
+		case 0: *m_F = (*m_F | 0b00000001);
+			break;
+		default: std::cerr << "ERROR: FLAG_SET switch error" << std::endl; exit(12);
+		};
+	};
+
+	bool FLAG_GET(uint8_t flag)
+	{
+		if (flag < 0 || flag > 7) { std::cerr << "ERROR: FLAG_SET out of range" << std::endl; exit(12); };
+		if (flag == 5 || flag == 3) { std::cerr << "ERROR: FLAG_SET attempting to set flags 5 or 3" << std::endl; exit(12); };
+
+		bool flag_value;
+		uint8_t test;
+
+		switch (flag)
+		{
+		case 7: test = (*m_F & 0b10000000); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		case 6: test = (*m_F & 0b01000000); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		case 4: test = (*m_F & 0b00010000); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		case 2: test = (*m_F & 0b00000100); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		case 1: test = (*m_F & 0b00000010); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		case 0: test = (*m_F & 0b00000001); if (test == 0b00000000) { flag_value = 0; }
+			  else { flag_value = 1; };
+			  break;
+		default: std::cerr << "ERROR: FLAG_GET switch error" << std::endl; exit(12);
+		};
+		return flag_value;
+	};
+
 public:
 	CPU(GB_Memory& total_memory)
 	{
@@ -141,6 +199,7 @@ public:
 		m_P = &m_CPU_total_memory[10];
 		m_X = &m_CPU_total_memory[12];
 		m_ptr_to_total_memory = &total_memory;
+		//m_ptr_stack_memory = new uint16_t[10];
 	};
 
 	
@@ -327,15 +386,61 @@ public:
 		*m_H = ((uint16_t)HL >> 8 & 0xFF);
 		*m_L = ((uint16_t)HL >> 0 & 0xFF);
 	};
+	
 
-
-	// - - - - 1 6 - - b i t - - l o a d s - - - - 
-	void LD_r16_n16(char reg_copy_to, uint16_t hex_or_bin_num_16bit) // Load n16 into r16.  Cycles: 3   Bytes: 3    Flags: None
+	// === === === 1 6 - - B I T - - L O A D S === === ===
+	void LD_r16_n16(char register_MSB, char register_LSB, uint16_t hex_or_bin_num_16bit) // Load n16 into r16.  Cycles: 3   Bytes: 3    Flags: None
 	{
-		std::vector<uint8_t**> vecptrs = m_char_to_reg_ptr_paired(reg_copy_to);
-		**vecptrs[0] = ((uint16_t)hex_or_bin_num_16bit >> 0 & 0xFF);
-		**vecptrs[1] = ((uint16_t)hex_or_bin_num_16bit >> 8 & 0xFF);
+		**m_char_to_reg_ptr_single(register_LSB) = ((uint16_t)hex_or_bin_num_16bit >> 0 & 0xFF);
+		**m_char_to_reg_ptr_single(register_MSB) = ((uint16_t)hex_or_bin_num_16bit >> 8 & 0xFF);
 	};
+
+	void LD_nnderef_SP(uint16_t nn)
+	{
+		m_ptr_to_total_memory->Set_Memory(nn, *m_S);
+		m_ptr_to_total_memory->Set_Memory(nn + 1, *m_P);
+	};
+
+	void LD_SP_HL()
+	{
+		*m_S = *m_H;
+		*m_P = *m_L;
+	};
+
+	void PUSH_rr(char reg_MSB, char reg_LSB)
+	{
+		uint16_t stack = (**m_char_to_reg_ptr_single(reg_MSB) << 8 | **m_char_to_reg_ptr_single(reg_LSB));
+		m_v_stack_memory.push_back(stack);
+	};
+
+	void POP_rr(char reg_MSB, char reg_LSB)
+	{
+		**m_char_to_reg_ptr_single(reg_MSB) = (m_v_stack_memory.back() >> 8 | 0xFF);
+		**m_char_to_reg_ptr_single(reg_LSB) = (m_v_stack_memory.back() >> 0 | 0xFF);
+		m_v_stack_memory.pop_back();
+	};
+
+
+	// === === === 8 - - B I T - - A R I T H M E T I C === === ===  
+	void ADD(char reg, uint8_t s) {};    // s = r, n, (HL)
+
+	void ADC(char reg, uint8_t s) {};  // to register A, add s + carry flag CY.
+
+	void SUB(char reg, uint8_t s) {};
+
+	void SBC(char reg, uint8_t s) {}; // from register A, sub s and carry flag CY.
+
+	void AND(char reg, uint8_t s) {};
+
+	void OR(char reg, uint8_t s) {};
+
+	void XOR(char reg, uint8_t s) {};
+
+	void CPs(char reg, uint8_t s) // Contents of 's' operand compared with contents of Accumulator. If true compare, Z-flag is set. 
+	{
+		
+	
+	}; 
 
 
 
@@ -346,5 +451,7 @@ public:
 		delete[] m_CPU_total_memory;
 		m_CPU_total_memory = nullptr;
 		m_ptr_to_total_memory = nullptr;
+	/*	delete[] m_ptr_stack_memory;
+		m_ptr_stack_memory = nullptr;*/
 	};
 };

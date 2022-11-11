@@ -15,7 +15,7 @@ private:
 public:
 	GB_Memory()
 	{
-		ptr_to_total_memory = new uint8_t[8192];
+		ptr_to_total_memory = new uint8_t[65536];
 	};
 
 	void Set_Memory(uint16_t reg_address_0to8191, uint8_t value)

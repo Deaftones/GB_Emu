@@ -1,21 +1,18 @@
 #include <iostream>
 #include <bitset>
-#include "GB_Memory_v2.hpp"
-#include "GB_CPU.hpp"
 
+void m_SET_BC(uint16_t val)
+{
+	uint8_t m_B, m_C;
+	m_B = ((uint16_t)val >> 8 & 0xFF);
+	m_C = ((uint16_t)val >> 0 & 0xFF);
+
+	std::cout << "B = " << std::bitset<8>(m_B) << "\nC = " << std::bitset<8>(m_C);
+};
 
 int main()
 {
-	uint16_t test = 0b0000'0110'1111'1110;
-	uint8_t leftside, rightside;
-	leftside = ((uint16_t)test >> 8 & 0xFF);
-	rightside = ((uint16_t)test >> 0 & 0xFF);
-
-	std::cout << "16bit test = " << std::bitset<16>(test) << "\nleftside = " << std::bitset<8>(leftside) << "\nrightside = " <<
-		std::bitset<8>(rightside) << std::endl;
-
-
-
+	m_SET_BC(0b1010101000001111);
 
 	return 0;
 }

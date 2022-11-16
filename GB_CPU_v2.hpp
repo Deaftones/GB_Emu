@@ -17,7 +17,11 @@ private:
 	uint16_t m_immediate_value_16;
 
 public:
-	GB_Bus() {};
+	GB_Bus() 
+	{
+		m_immediate_value_16 = 0;
+		m_immediate_value_8 = 0;
+	};
 	uint8_t GetIMM_8()
 	{
 		return m_immediate_value_8;
@@ -25,6 +29,14 @@ public:
 	uint16_t GetIMM_16()
 	{
 		return m_immediate_value_16;
+	};
+	void SetIMM_8(uint8_t set)
+	{
+		m_immediate_value_8 = set;
+	};
+	void setIMM_16(uint16_t set)
+	{
+		m_immediate_value_16 = set;
 	};
 	~GB_Bus() {};
 };
@@ -148,6 +160,56 @@ private:
 		return memory_address;
 	};
 
+	bool m_GET_FLAGS()
+	{
+		bool flags[4] = { m_F_Z, m_F_N, m_F_H, m_F_Cy };
+		return flags;
+	};
+
+	void m_SET_FLAGS(short Z, short N, short H, short C)
+	{
+		switch (Z)
+		{
+		case 0: m_F_Z = 0;
+			break;
+		case 1: m_F_Z = 1;
+			break;
+		case 2: m_F_Z = m_F_Z;
+			break;
+		default: std::cerr << "ERROR: m_SET_FLAGS error" << std::endl; exit(20);
+		};
+		switch (N)
+		{
+		case 0: m_F_N = 0;
+			break;
+		case 1: m_F_N = 1;
+			break;
+		case 2: m_F_N = m_F_N;
+			break;
+		default: std::cerr << "ERROR: m_SET_FLAGS error" << std::endl; exit(20);
+		};
+		switch (H)
+		{
+		case 0: m_F_H = 0;
+			break;
+		case 1: m_F_H = 1;
+			break;
+		case 2: m_F_H = m_F_H;
+			break;
+		default: std::cerr << "ERROR: m_SET_FLAGS error" << std::endl; exit(20);
+		};
+		switch (C)
+		{
+		case 0: m_F_Cy = 0;
+			break;
+		case 1: m_F_Cy = 1;
+			break;
+		case 2: m_F_Cy = m_F_Cy;
+			break;
+		default: std::cerr << "ERROR: m_SET_FLAGS error" << std::endl; exit(20);
+		};
+	};
+
 	/*uint16_t* m_GET_PAIR_POINTER(char first_letter)
 	{
 		uint16_t* ptr;
@@ -163,6 +225,63 @@ private:
 		};
 		return ptr;
 	}*/
+
+	enum class opcode_functions
+	{
+		ADC,
+		ADD,
+		AND,	
+		BIT,
+		CALL,
+		CCF,
+		CP,
+		CPL,
+		DAA,
+		DEC,
+		DI,
+		EI,
+		HALT,
+		INC,
+		JP,
+		JR,
+		LD,
+		LDH,
+		NOP,
+		OR,
+		POP,
+		PUSH,
+		RAA,
+		RLA,
+		RES,
+		RET,
+		RLCA,
+		RR,
+		RRC,
+		RRCA,
+		RST,
+		SBC,
+		SCF,
+		SET,
+		SRA,
+		SRL,
+		STOP,
+		SUB,
+		XOR
+	};
+
+	template <typename T, typename U>
+
+		void OP(opcode_functions opcode, bool bits_0_8, uint16_t& left_side, bool L_is_pointer, uint16_t& right_side, bool R_is_pointer)
+		{
+			uint16_t* Lptr;
+			uint16_t* Rptr;
+			if (L_is_pointer == 1) { Lptr = m_RAM_pointer-> }
+			switch (opcode)
+			{
+			case opcode_functions::ADC: left_side = left_side + right_side + m_F_Cy;
+			}
+		}
+	
 
 public:
 	GB_CPU(GB_Memory& mem)
@@ -186,6 +305,8 @@ public:
 		return m_bus_ptr->GetIMM_16();
 	};
 
+	void OPCODE()
+
 	void NOP(uint16_t cycles)
 	{
 		m_clock_cycles = cycles;
@@ -195,31 +316,26 @@ public:
 		};
 	};
 
-	void LD_BC(uint16_t right, uint16_t cycles, char ZFlag, char NFlag, char HFlag, char CyFlag)
+	void LD_BC(uint16_t right, uint16_t cycles)
 	{
 		m_SET_BC(right);
 		m_clock_cycles = cycles;
-		m_SET_FLAG('Z', ZFlag);
-		m_SET_FLAG('N', NFlag);
-		m_SET_FLAG('H', HFlag);
-		m_SET_FLAG('C', CyFlag);
 	};
 
-	void LD_ptr_reg(char ptr_first_letter, uint8_t& registry, uint16_t cycles, char ZFlag, char NFlag, char HFlag, char CyFlag)
+	void LD_ptr_reg(char ptr_first_letter, uint8_t& registry, uint16_t cycles)
 	{
 		m_ptr_total_mem->Set_Memory(m_GET_PAIR_VALUE(ptr_first_letter), registry);
 	};
 
-	void INC_8(uint8_t& reg, uint16_t cycles, char ZFlag, char NFlag, char HFlag, char CyFlag)
+	void INC_8(uint8_t& reg, uint16_t cycles)
 	{
 		reg++;
 	};
 
-	void INC_16(uint8_t& LSB, uint16_t cycles, char ZFlag, char NFlag, char HFlag, char CyFlag)
+	void INC_16(uint8_t& LSB, uint16_t cycles)
 	{
 		LSB++;
 	};
-
 	
 	void OPCODE(uint16_t code)
 	{
@@ -238,11 +354,11 @@ public:
 		{
 		case 0x00: NOP(4);
 			break;
-		case 0x01: LD_BC(IMM_16(), 12, X,X,X,X);
+		case 0x01: LD_BC(IMM_16(), 12); m_SET_FLAGS(2, 2, 2, 2);
 			break;
-		case 0x02: LD_ptr_reg(B, m_A, 8, X, X, X, X);
+		case 0x02: LD_ptr_reg(B, m_A, 8); m_SET_FLAGS(2, 2, 2, 2);
 			break;
-		case 0x03: INC_16(m_C, 8, X, X, X, X);
+		case 0x03: INC_16(m_C, 8); m_SET_FLAGS(2, 2, 2, 2);
 			break;
 		case 0x04:
 			break;

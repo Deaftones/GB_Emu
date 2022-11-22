@@ -10,6 +10,7 @@
 #include <bitset>
 
 
+
 class GB_Bus
 {
 private:
@@ -226,61 +227,9 @@ private:
 		return ptr;
 	}*/
 
-	enum class opcode_functions
-	{
-		ADC,
-		ADD,
-		AND,	
-		BIT,
-		CALL,
-		CCF,
-		CP,
-		CPL,
-		DAA,
-		DEC,
-		DI,
-		EI,
-		HALT,
-		INC,
-		JP,
-		JR,
-		LD,
-		LDH,
-		NOP,
-		OR,
-		POP,
-		PUSH,
-		RAA,
-		RLA,
-		RES,
-		RET,
-		RLCA,
-		RR,
-		RRC,
-		RRCA,
-		RST,
-		SBC,
-		SCF,
-		SET,
-		SRA,
-		SRL,
-		STOP,
-		SUB,
-		XOR
-	};
 
-	template <typename T, typename U>
 
-		void OP(opcode_functions opcode, bool bits_0_8, uint16_t& left_side, bool L_is_pointer, uint16_t& right_side, bool R_is_pointer)
-		{
-			uint16_t* Lptr;
-			uint16_t* Rptr;
-			if (L_is_pointer == 1) { Lptr = m_RAM_pointer-> }
-			switch (opcode)
-			{
-			case opcode_functions::ADC: left_side = left_side + right_side + m_F_Cy;
-			}
-		}
+
 	
 
 public:
@@ -305,8 +254,6 @@ public:
 		return m_bus_ptr->GetIMM_16();
 	};
 
-	void OPCODE()
-
 	void NOP(uint16_t cycles)
 	{
 		m_clock_cycles = cycles;
@@ -322,6 +269,22 @@ public:
 		m_clock_cycles = cycles;
 	};
 
+	void LD_8(uint8_t& reg, uint8_t right_side, uint16_t cycles)
+	{
+		if ((reg + right_side) > 0xFF) { m_SET_FLAG('C', 1); };
+		reg = reg + right_side;
+	};
+
+	void LD_16(std::string reg_16, uint16_t right_side, uint16_t cycles) 
+	{
+		
+	};
+
+	void LD_16(uint16_t address, uint16_t right_side, uint16_t cycles) 
+	{
+		m_ptr_total_mem->Set_Memory_16(address, right_side);
+	};
+
 	void LD_ptr_reg(char ptr_first_letter, uint8_t& registry, uint16_t cycles)
 	{
 		m_ptr_total_mem->Set_Memory(m_GET_PAIR_VALUE(ptr_first_letter), registry);
@@ -329,15 +292,93 @@ public:
 
 	void INC_8(uint8_t& reg, uint16_t cycles)
 	{
+		if (reg == 0xFF) { m_SET_FLAG('C', 1); };
 		reg++;
 	};
 
-	void INC_16(uint8_t& LSB, uint16_t cycles)
+	void INC_16(std::string reg_16, uint16_t cycles)
 	{
-		LSB++;
+		if (reg_16 == "BC") 
+		{ 
+			if (m_GET_BC() == 0xFFFF) { m_SET_FLAG('C', 1); };
+			m_SET_BC(m_GET_BC() + 1); 
+		}
+		else if (reg_16 == "DE") 
+		{ 
+			if (m_GET_DE() == 0xFFFF) { m_SET_FLAG('C', 1); };
+			m_SET_DE(m_GET_DE() + 1); 
+		}
+		else if (reg_16 == "HL") 
+		{ 
+			if (m_GET_HL() == 0xFFFF) { m_SET_FLAG('C', 1); };
+			m_SET_HL(m_GET_HL() + 1); 
+		}
+		else { std::cerr << "ERROR - INC_16 - invalid arguments" << std::endl; exit(69); };
+	};
+
+	void DEC_8(uint8_t& reg, uint16_t cycles)
+	{
+		if (reg == 0x00)
+		{
+			m_SET_FLAG('C', 0);
+			reg = 0xFF;
+		}
+		else { reg = reg - 1; };
+	};
+
+	void DEC_16(std::string reg_16, uint16_t cycles)
+	{
+		if (reg_16 == "BC")
+		{
+			uint16_t bctemp = m_GET_BC();
+			if (bctemp == 0x0000)
+			{
+				m_SET_FLAG('C', 0);
+				m_SET_BC(0xFFFF);
+			}
+			else { m_SET_BC(bctemp - 1); };
+		}
+		else if (reg_16 == "DE")
+		{
+			uint16_t detemp = m_GET_DE();
+			if (detemp == 0x0000)
+			{
+				m_SET_FLAG('C', 0);
+				m_SET_DE(0xFFFF);
+			}
+			else { m_SET_DE(detemp - 1); };
+		}
+		else if (reg_16 == "HL")
+		{
+			uint16_t hltemp = m_GET_HL();
+			if (hltemp == 0x0000)
+			{
+				m_SET_FLAG('C', 0);
+				m_SET_HL(0xFFFF);
+			}
+			else { m_SET_HL(hltemp - 1); };
+		}
+		else { std::cerr << "ERROR - DEC_16 - invalid argument" << std::endl; exit(69); };
+	};
+
+	void RLCA()                   // DONT CONFUSE WITH RLC_A -- it does the same but faster and c/ different flag use
+	{                             // S,Z, and P/V are preserved, H and N flags are reset
+		uint8_t atemp = m_A;
+		m_A << 1;
+		if (m_F_Cy == 1)
+		{
+			m_A += 1;
+		};
+		if (atemp >= 0b10000000)
+		{
+			m_F_Cy = 1;
+		}
+		else { m_F_Cy = 0; };
+		m_F_H = 0;
+		m_F_N = 0;
 	};
 	
-	void OPCODE(uint16_t code)
+	void OPCODE_2(uint16_t code)
 	{
 		char set = '1';
 		char reset = '0';
@@ -358,17 +399,17 @@ public:
 			break;
 		case 0x02: LD_ptr_reg(B, m_A, 8); m_SET_FLAGS(2, 2, 2, 2);
 			break;
-		case 0x03: INC_16(m_C, 8); m_SET_FLAGS(2, 2, 2, 2);
+		case 0x03: INC_16("BC", 8); m_SET_FLAGS(2, 2, 2, 2);
 			break;
-		case 0x04:
+		case 0x04: INC_8(m_B, 4); m_SET_FLAGS(2, 0, 2, 2);
 			break;
-		case 0x05:
+		case 0x05: DEC_8(m_B, 4); m_SET_FLAGS(2, 1, 2, 2);
 			break;
-		case 0x06:
+		case 0x06: LD_8(m_B, IMM_8(), 8); m_SET_FLAGS(2, 2, 2, 2);
 			break;
-		case 0x07:
+		case 0x07: RLCA();
 			break;
-		case 0x08:
+		case 0x08: LD_16()
 			break;
 		case 0x09:
 			break;
@@ -420,34 +461,6 @@ public:
 	};
 
 
-
-
-
-
-
-
-
-
-
-
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	~GB_CPU()
 	{
@@ -455,3 +468,121 @@ public:
 		m_RAM_pointer = nullptr;
 	};
 };
+
+enum class opcode_functions
+{
+	ADC,
+	ADD,
+	AND,
+	BIT,
+	CALL,
+	CCF,
+	CP,
+	CPL,
+	DAA,
+	DEC,
+	DI,
+	EI,
+	HALT,
+	INC,
+	JP,
+	JR,
+	LD,
+	LDH,
+	NOP,
+	OR,
+	POP,
+	PUSH,
+	RAA,
+	RLA,
+	RES,
+	RET,
+	RLCA,
+	RR,
+	RRC,
+	RRCA,
+	RST,
+	SBC,
+	SCF,
+	SET,
+	SRA,
+	SRL,
+	STOP,
+	SUB,
+	XOR
+};
+
+//template <typename T, typename U>
+//class OPCODE
+//{
+//private:
+//	uint8_t* m_ptr_tot_mem;
+//
+//public:
+//	OPCODE(GB_Memory& mem, opcode_functions func, T& left_value, bool left_is_ptr, U& right_value, bool right_is_ptr)
+//	{
+//		m_ptr_tot_mem = mem.Get_Mem_Total_Ptr();
+//		T* ptr_left;
+//		U* ptr_right;
+//
+//		if (left_is_ptr == true) { ptr_left = mem.Get_Memory(left_value); }
+//		else
+//		{
+//			ptr_left = &left_value;
+//		};
+//
+//		if (right_is_ptr == true) { ptr_right = mem.Get_Memory(right_value); }
+//		else
+//		{
+//			prt_right = &right_value;
+//		};
+//
+//		switch (func)
+//		{
+//		case ADC:
+//			break;
+//		case ADD:
+//			break;
+//		case AND:
+//			break;
+//		case BIT:
+//			break;
+//			CALL,
+//			CCF,
+//			CP,
+//			CPL,
+//			DAA,
+//			DEC,
+//			DI,
+//			EI,
+//			HALT,
+//			INC,
+//			JP,
+//			JR,
+//			LD,
+//			LDH,
+//			NOP,
+//			OR,
+//			POP,
+//			PUSH,
+//			RAA,
+//			RLA,
+//			RES,
+//			RET,
+//			RLCA,
+//			RR,
+//			RRC,
+//			RRCA,
+//			RST,
+//			SBC,
+//			SCF,
+//			SET,
+//			SRA,
+//			SRL,
+//			STOP,
+//			SUB,
+//			XOR
+//		}
+//
+//	}
+//};
